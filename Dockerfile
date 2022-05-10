@@ -1,5 +1,4 @@
-FROM ruby:2.7.2-slim
-LABEL maintainer "Zweitag GmbH"
+FROM ruby:2.7.6-slim
 
 # Debian/Apt dependencies
 RUN apt-get update -qq \
