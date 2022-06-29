@@ -20,6 +20,11 @@ class MapsController < ApplicationController
     render :show
   end
 
+  def status
+    map = Map.find(params[:map_id])
+    render plain: map.status
+  end
+
   private
 
   def map_params
