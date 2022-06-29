@@ -1,6 +1,7 @@
 mapboxgl.accessToken = 'pk.eyJ1Ijoic2hpZ2F3aXJlIiwiYSI6ImNqYXo4YXRiNDFqMjEyd3Bpc2t5YXB2bHMifQ.ulCNsDwo7eL1R37bpRSxRg';
 
 const maxZoom = 11;
+let mapStyle = 'shigawire/cjkqod0by7xsc2rpju6kvos0x';
 
 $(document).on('turbolinks:load', () => {
   $('#map_title').on('input', function() {
@@ -13,6 +14,11 @@ $(document).on('turbolinks:load', () => {
     $('#hipstermap-subtitle').text(value);
   });
 
+  $('#map_style').on('input', function() {
+    mapStyle = $(this).val();
+    map.setStyle(`mapbox://styles/${mapStyle}`);
+  });
+
   $('#map_coords').on('input', function() {
     var value = $(this).val();
     $('#hipstermap-coords').text(value);
@@ -22,7 +28,7 @@ $(document).on('turbolinks:load', () => {
 
   var map = new mapboxgl.Map({
       container: 'hipstermap-preview-map',
-      style: 'mapbox://styles/shigawire/cjkqod0by7xsc2rpju6kvos0x',
+      style: `mapbox://styles/${mapStyle}`,
       center: [0, 0],
       zoom: 0.1
   });
