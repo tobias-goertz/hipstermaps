@@ -36,7 +36,8 @@ gem "jbuilder"
 # Reduces boot times through caching; required in config/boot.rb
 gem "bootsnap", require: false
 
-gem "aws-sdk"
+gem "aws-sdk-s3"
+gem "aws-sdk-lambda"
 gem "dotenv-rails"
 gem "sidekiq"
 gem "pry-rails"
