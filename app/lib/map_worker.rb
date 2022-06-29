@@ -9,7 +9,7 @@ class MapWorker
 
     payload = {
       formatSize: map.format,
-      mapStyle: "cjkqod0by7xsc2rpju6kvos0x",
+      mapStyle: map.style,
       lon: map.lon,
       lat: map.lat,
       bucketFile: map.filename,
