@@ -57,7 +57,7 @@ RUN asdf plugin add nodejs
 RUN asdf install nodejs
 
 # # Install yarn packages (and throw an error if the lockfile would change)
-# RUN npm install -g yarn
+RUN npm install -g yarn
 # COPY --chown=nonroot package.json yarn.lock ./
 # RUN yarn install --frozen-lockfile
 
