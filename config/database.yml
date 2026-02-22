@@ -1,14 +1,52 @@
 default: &default
-  # url: this is automatically populated by ENV var `DATABASE_URL`
+  adapter: postgresql
+  encoding: unicode
+  host: localhost
+  username: hipstermaps
+  password: hipstermaps
+  max_connections: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
 
 development:
-  <<: *default
-  url: <%= ENV["DATABASE_URL_WITHOUT_DB_NAME"] %>
-  database: hipstermaps-dev
-test:
-  <<: *default
-  url: <%= ENV["DATABASE_URL_WITHOUT_DB_NAME"] %>
-  database: hipstermaps-test
+  primary:
+    <<: *default
+    database: hipstermaps_development
+  queue:
+    <<: *default
+    database: hipstermaps_development_queue
+    migrations_paths: db/queue_migrate
+  cable:
+    <<: *default
+    database: hipstermaps_development_cable
+    migrations_paths: db/cable_migrate
 
-staging: *default
-production: *default
+test:
+  primary:
+    <<: *default
+    database: hipstermaps_test
+  queue:
+    <<: *default
+    database: hipstermaps_test_queue
+    migrations_paths: db/queue_migrate
+  cable:
+    <<: *default
+    database: hipstermaps_test_cable
+    migrations_paths: db/cable_migrate
+
+# In production, DATABASE_URL takes precedence over individual settings.
+# Solid Queue and Cable use the same database as the primary.
+production:
+  primary:
+    <<: *default
+    url: <%= ENV["DATABASE_URL"] %>
+  cache:
+    <<: *default
+    url: <%= ENV["DATABASE_URL"] %>
+    migrations_paths: db/cache_migrate
+  queue:
+    <<: *default
+    url: <%= ENV["DATABASE_URL"] %>
+    migrations_paths: db/queue_migrate
+  cable:
+    <<: *default
+    url: <%= ENV["DATABASE_URL"] %>
+    migrations_paths: db/cable_migrate

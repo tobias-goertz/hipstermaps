@@ -1,0 +1,60 @@
+services:
+  web:
+    build: .
+    image: hipstermaps:latest
+    ports:
+      - "5000:80"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - SECRET_KEY_BASE=${SECRET_KEY_BASE}
+      - RAILS_ENV=${RAILS_ENV:-production}
+      - AWS_REGION=${AWS_REGION}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_BUCKET_NAME=${AWS_BUCKET_NAME}
+      - LAMBDA_FN_NAME=${LAMBDA_FN_NAME}
+      - MAPBOX_ACCESS_TOKEN=${MAPBOX_ACCESS_TOKEN}
+      - MAPS_CDN_HOST=${MAPS_CDN_HOST}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: always
+
+  worker:
+    image: hipstermaps:latest
+    command: ["./bin/jobs"]
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - SECRET_KEY_BASE=${SECRET_KEY_BASE}
+      - RAILS_ENV=${RAILS_ENV:-production}
+      - AWS_REGION=${AWS_REGION}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_BUCKET_NAME=${AWS_BUCKET_NAME}
+      - LAMBDA_FN_NAME=${LAMBDA_FN_NAME}
+      - MAPBOX_ACCESS_TOKEN=${MAPBOX_ACCESS_TOKEN}
+      - MAPS_CDN_HOST=${MAPS_CDN_HOST}
+    depends_on:
+      web:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+    restart: always
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: hipstermaps_production
+      POSTGRES_USER: hipstermaps
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hipstermaps"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+volumes:
+  postgres_data:

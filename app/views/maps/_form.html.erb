@@ -1,0 +1,95 @@
+<div class="flex flex-col md:flex-row gap-8"
+     data-controller="map-preview poster-preview geocoder">
+
+  <%# Poster Preview — left on desktop, top on mobile %>
+  <div class="flex-shrink-0 flex justify-center">
+    <div class="poster-container w-full max-w-[340px] md:w-[400px] md:max-w-none"
+         data-poster-preview-target="container"
+         data-format="2:3">
+      <div class="poster-map-area" data-map-preview-target="container">
+      </div>
+      <div class="poster-text-area">
+        <div class="poster-title" data-poster-preview-target="title">CITY</div>
+        <div class="poster-subtitle" data-poster-preview-target="subtitle">COUNTRY</div>
+        <div class="poster-coords" data-poster-preview-target="coords">41&deg;01'14" N - 28&deg;58'30" E</div>
+      </div>
+    </div>
+  </div>
+
+  <%# Form — right on desktop, bottom on mobile %>
+  <div class="flex-1 min-w-0">
+    <% if map.errors.any? %>
+      <div class="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+        <p class="text-red-700 dark:text-red-400 text-sm"><%= map.errors.full_messages.to_sentence %></p>
+      </div>
+    <% end %>
+
+    <%# Geocoder search %>
+    <div class="mb-6">
+      <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Search for a city</label>
+      <div data-geocoder-target="searchContainer" class="w-full"></div>
+    </div>
+
+    <%= form_with model: map, class: "space-y-5" do |f| %>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Format</label>
+        <%= f.select :format,
+            [["75\u00D750cm (2:3)", "2:3"], ["40\u00D730cm (3:4)", "3:4"]],
+            {},
+            class: "w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white shadow-sm focus:ring-hipster focus:border-hipster text-sm",
+            data: { action: "change->map-preview#formatChanged change->poster-preview#formatChanged" } %>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Style</label>
+        <%= f.select :style,
+            [
+              ["Blue", "shigawire/cjkqod0by7xsc2rpju6kvos0x"],
+              ["Dark", "mapbox/dark-v10"],
+              ["Decimal", "mapbox-map-design/ck4014y110wt61ctt07egsel6"],
+              ["Satellite", "mapbox/satellite-v9"],
+              ["Frank", "mapbox-map-design/ckshxkppe0gge18nz20i0nrwq"]
+            ],
+            {},
+            class: "w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white shadow-sm focus:ring-hipster focus:border-hipster text-sm",
+            data: { action: "change->map-preview#styleChanged" } %>
+      </div>
+
+      <div data-poster-preview-target="fieldsContainer" class="hidden">
+        <div class="space-y-5">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">City</label>
+            <%= f.text_field :title,
+                value: "CITY",
+                class: "w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white shadow-sm focus:ring-hipster focus:border-hipster text-sm",
+                data: { action: "input->poster-preview#titleChanged", poster_preview_target: "titleInput" } %>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Country</label>
+            <%= f.text_field :subtitle,
+                value: "COUNTRY",
+                class: "w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white shadow-sm focus:ring-hipster focus:border-hipster text-sm",
+                data: { action: "input->poster-preview#subtitleChanged", poster_preview_target: "subtitleInput" } %>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Coordinates</label>
+            <%= f.text_field :coords,
+                class: "w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white shadow-sm focus:ring-hipster focus:border-hipster text-sm",
+                data: { action: "input->poster-preview#coordsChanged", poster_preview_target: "coordsInput" } %>
+          </div>
+        </div>
+      </div>
+
+      <%= f.hidden_field :lon, value: 0, data: { map_preview_target: "lonInput", geocoder_target: "lonInput" } %>
+      <%= f.hidden_field :lat, value: 0, data: { map_preview_target: "latInput", geocoder_target: "latInput" } %>
+      <%= f.hidden_field :zoom, value: 0.1, data: { map_preview_target: "zoomInput" } %>
+
+      <div class="pt-2">
+        <%= f.submit "Create Map",
+            class: "w-full bg-hipster hover:bg-hipster-dark text-white font-medium py-3 px-4 rounded-lg transition-colors cursor-pointer text-sm tracking-wide" %>
+      </div>
+    <% end %>
+  </div>
+</div>

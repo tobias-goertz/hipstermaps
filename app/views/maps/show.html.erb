@@ -1,0 +1,14 @@
+<%= turbo_stream_from @map %>
+
+<div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+  <h1 class="text-2xl font-semibold text-gray-900 dark:text-white tracking-wide mb-8 text-center">
+    <%= @map.title %>
+    <% if @map.subtitle.present? %>
+      <span class="text-hipster font-normal"> &mdash; <%= @map.subtitle %></span>
+    <% end %>
+  </h1>
+
+  <div id="<%= dom_id(@map) %>">
+    <%= render partial: "map", locals: { map: @map } %>
+  </div>
+</div>

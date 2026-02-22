@@ -1,105 +1,75 @@
 # syntax=docker/dockerfile:1
+# check=error=true
 
-# ============================================================
-# Stage 1: Builder – install gems and compile assets
-# ============================================================
-FROM ruby:2.7.6-slim AS builder
+# HipsterMaps production Dockerfile
+# docker build -t hipstermaps .
+# docker run -d -p 80:80 -e RAILS_MASTER_KEY=<value from config/master.key> --name hipstermaps hipstermaps
 
-# Build dependencies (compilers, dev headers)
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    apt-get update -qq \
-  && DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends \
-    build-essential \
-    ca-certificates \
-    curl \
-    git \
-    libicu-dev \
-    libpq-dev \
-    libtre-dev \
-    zlib1g-dev
+# Make sure RUBY_VERSION matches the Ruby version in .ruby-version
+ARG RUBY_VERSION=3.3.6
+FROM docker.io/library/ruby:$RUBY_VERSION-slim AS base
 
-ENV LANG=C.UTF-8
-ENV TZ=Europe/Berlin
+# Rails app lives here
+WORKDIR /rails
 
-# Install compatible Bundler (don't update rubygems – latest requires Ruby 3.2+)
-RUN gem install bundler -v '~> 2.3.0'
+# Install base packages
+RUN apt-get update -qq && \
+    apt-get install --no-install-recommends -y curl libjemalloc2 postgresql-client && \
+    ln -s /usr/lib/$(uname -m)-linux-gnu/libjemalloc.so.2 /usr/local/lib/libjemalloc.so && \
+    rm -rf /var/lib/apt/lists /var/cache/apt/archives
 
-RUN adduser --shell /bin/bash --home /app --disabled-password nonroot
-USER nonroot
+# Set production environment variables and enable jemalloc for reduced memory usage and latency.
+ENV RAILS_ENV="production" \
+    BUNDLE_DEPLOYMENT="1" \
+    BUNDLE_PATH="/usr/local/bundle" \
+    BUNDLE_WITHOUT="development:test" \
+    LD_PRELOAD="/usr/local/lib/libjemalloc.so"
 
-WORKDIR /app
+# Throw-away build stage to reduce size of final image
+FROM base AS build
 
-ARG RAILS_ENV=production
-ENV RAILS_ENV=${RAILS_ENV}
-ARG BUNDLE_WITHOUT="development test"
+# Install packages needed to build gems
+RUN apt-get update -qq && \
+    apt-get install --no-install-recommends -y build-essential git libpq-dev libyaml-dev pkg-config && \
+    rm -rf /var/lib/apt/lists /var/cache/apt/archives
 
-# Bundle install with persistent vendor cache for incremental rebuilds.
-# When Gemfile changes, the cache restores previously compiled gems so only
-# changed/new gems need to be compiled (saves 2-4 min vs full rebuild).
-COPY --chown=nonroot .ruby-version Gemfile Gemfile.lock ./
-RUN --mount=type=cache,target=/tmp/vendor-cache,uid=1000 \
-    --mount=type=cache,target=/usr/local/bundle/cache \
-    bundle config set deployment 'true' \
-    && bundle config set without "${BUNDLE_WITHOUT}" \
-    && (cp -a /tmp/vendor-cache/bundle vendor/ 2>/dev/null || true) \
-    && bundle install \
-      --jobs "$(nproc)" \
-      --retry 3 \
-    && rm -rf /tmp/vendor-cache/bundle \
-    && cp -a vendor/bundle /tmp/vendor-cache/bundle
+# Install application gems
+COPY vendor/* ./vendor/
+COPY Gemfile Gemfile.lock ./
+
+RUN bundle install && \
+    rm -rf ~/.bundle/ "${BUNDLE_PATH}"/ruby/*/cache "${BUNDLE_PATH}"/ruby/*/bundler/gems/*/.git && \
+    # -j 1 disable parallel compilation to avoid a QEMU bug: https://github.com/rails/bootsnap/issues/495
+    bundle exec bootsnap precompile -j 1 --gemfile
 
 # Copy application code
-COPY --chown=nonroot . ./
+COPY . .
 
-# Precompile assets with Sprockets cache for incremental rebuilds.
-# The cache mount persists tmp/cache across builds so only changed
-# assets need recompilation (saves 1-2 min vs full recompile).
-ARG GIT_REV=unknown
-ENV GIT_REV=${GIT_REV}
-RUN --mount=type=cache,target=/app/tmp/cache,uid=1000 \
-    export $(cat .env.build | xargs) && bundle exec rake assets:precompile
+# Precompile bootsnap code for faster boot times.
+# -j 1 disable parallel compilation to avoid a QEMU bug: https://github.com/rails/bootsnap/issues/495
+RUN bundle exec bootsnap precompile -j 1 app/ lib/
 
-# ============================================================
-# Stage 2: Runtime – minimal image without build tooling
-# ============================================================
-FROM ruby:2.7.6-slim
+# Precompiling assets for production without requiring secret RAILS_MASTER_KEY
+RUN SECRET_KEY_BASE_DUMMY=1 ./bin/rails assets:precompile
 
-# Runtime-only libraries (no compilers, no -dev headers)
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    apt-get update -qq \
-  && DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends \
-    ca-certificates \
-    libicu67 \
-    libnss3 \
-    libpq5 \
-    libtre5 \
-    postgresql-client
 
-ENV LANG=C.UTF-8
-ENV TZ=Europe/Berlin
 
-RUN gem install bundler -v '~> 2.3.0'
 
-RUN adduser --shell /bin/bash --home /app --disabled-password nonroot
-USER nonroot
+# Final stage for app image
+FROM base
 
-WORKDIR /app
+# Run and own only the runtime files as a non-root user for security
+RUN groupadd --system --gid 1000 rails && \
+    useradd rails --uid 1000 --gid 1000 --create-home --shell /bin/bash
+USER 1000:1000
 
-ARG RAILS_ENV=production
-ENV RAILS_ENV=${RAILS_ENV}
-ARG GIT_REV=unknown
-ENV GIT_REV=${GIT_REV}
+# Copy built artifacts: gems, application
+COPY --chown=rails:rails --from=build "${BUNDLE_PATH}" "${BUNDLE_PATH}"
+COPY --chown=rails:rails --from=build /rails /rails
 
-# Copy app with compiled gems and precompiled assets from builder
-COPY --from=builder --chown=nonroot /app /app
+# Entrypoint prepares the database.
+ENTRYPOINT ["/rails/bin/docker-entrypoint"]
 
-# Re-set bundle config (builder's /usr/local/bundle/config is not copied)
-RUN bundle config set deployment 'true' \
-    && bundle config set path vendor/bundle \
-    && bundle config set without "development test"
-
-ENV PORT=5000
-EXPOSE 5000
-CMD ["bundle", "exec", "puma"]
+# Start server via Thruster by default, this can be overwritten at runtime
+EXPOSE 80
+CMD ["./bin/thrust", "./bin/rails", "server"]
