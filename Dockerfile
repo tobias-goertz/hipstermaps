@@ -1,84 +1,116 @@
-FROM ruby:2.7.6-slim
+# syntax=docker/dockerfile:1
 
-# Debian/Apt dependencies
-RUN apt-get update -qq \
-  && DEBIAN_FRONTEND=noninteractive apt-get -yq dist-upgrade \
+# ============================================================
+# Stage 1: Builder – install gems and compile assets
+# ============================================================
+FROM ruby:2.7.6-slim AS builder
+
+# Build dependencies (compilers, dev headers)
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update -qq \
   && DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends \
     build-essential \
     ca-certificates \
     curl \
-    dirmngr \
-    ghostscript \
     git \
-    gpg \
-    less \
-    libgs9-common \
     libicu-dev \
-    libnss3 \
     libpq-dev \
     libtre-dev \
-    postgresql-client \
-    tar \
-    xz-utils \
-    zlib1g-dev \
-  && apt-get clean \
-  && rm -rf /var/cache/apt/archives/* \
-  && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
-  && truncate -s 0 /var/log/*log
+    zlib1g-dev
 
-RUN curl -sSL -o- https://github.com/tmate-io/tmate/releases/download/2.4.0/tmate-2.4.0-static-linux-amd64.tar.xz | \
-  tar -xJf- -C bin --strip-components=1 tmate-2.4.0-static-linux-amd64/tmate \
- && chmod +x /bin/tmate
+# Install Node.js 16 (needed only as ExecJS runtime for asset compilation)
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    curl -fsSL https://deb.nodesource.com/setup_16.x | bash - \
+  && apt-get install -y --no-install-recommends nodejs
 
-# enable UTF-8 locale, fixes many Unicode issues
 ENV LANG=C.UTF-8
-
-# Set default / system time zone to Europe/Berlin
 ENV TZ=Europe/Berlin
 
-# Install current Bundler
-RUN gem update --system && gem install bundler
+# Install compatible Bundler (don't update rubygems – latest requires Ruby 3.2+)
+RUN gem install bundler -v '~> 2.3.0'
 
-# Application will run as 'nonroot' user without root privileges
 RUN adduser --shell /bin/bash --home /app --disabled-password nonroot
 USER nonroot
 
 WORKDIR /app
 
-# Install asdf version manager (can be used to install Node and other language dependencies)
-RUN git clone --depth 1 https://github.com/asdf-vm/asdf.git $HOME/.asdf && \
-    echo '. $HOME/.asdf/asdf.sh' >> $HOME/.bashrc && \
-    echo '. $HOME/.asdf/asdf.sh' >> $HOME/.profile
-ENV PATH="${PATH}:/app/.asdf/shims:/app/.asdf/bin"
-COPY --chown=nonroot .tool-versions ./
-
-# Install NodeJS through asdf (version comes from .tool-versions)
-RUN asdf plugin add nodejs
-RUN asdf install nodejs
-
-# # Install yarn packages (and throw an error if the lockfile would change)
-RUN npm install -g yarn
-# COPY --chown=nonroot package.json yarn.lock ./
-# RUN yarn install --frozen-lockfile
-
-# ARGs can be overridden at image build time through --build-arg
-ARG RAILS_ENV
-ENV RAILS_ENV=${RAILS_ENV:-production}
-ARG GIT_REV
-ENV GIT_REV=${GIT_REV:-unknown}
+ARG RAILS_ENV=production
+ENV RAILS_ENV=${RAILS_ENV}
 ARG BUNDLE_WITHOUT="development test"
-# bundle install ('deployment' here means bundling to vendor/bundle and erroring out when Gemfile.lock would change)
-COPY --chown=nonroot .ruby-version Gemfile Gemfile.lock ./
-RUN bundle config set deployment 'true' \
-    && bundle install \
-      --jobs 5 \
-      --retry 3
 
-# Copy all the rest of the application
+# Bundle install with persistent vendor cache for incremental rebuilds.
+# When Gemfile changes, the cache restores previously compiled gems so only
+# changed/new gems need to be compiled (saves 2-4 min vs full rebuild).
+COPY --chown=nonroot .ruby-version Gemfile Gemfile.lock ./
+RUN --mount=type=cache,target=/tmp/vendor-cache,uid=1000 \
+    --mount=type=cache,target=/usr/local/bundle/cache \
+    bundle config set deployment 'true' \
+    && bundle config set without "${BUNDLE_WITHOUT}" \
+    && (cp -a /tmp/vendor-cache/bundle vendor/ 2>/dev/null || true) \
+    && bundle install \
+      --jobs "$(nproc)" \
+      --retry 3 \
+    && rm -rf /tmp/vendor-cache/bundle \
+    && cp -a vendor/bundle /tmp/vendor-cache/bundle
+
+# Copy application code
 COPY --chown=nonroot . ./
 
-# Precompile assets with minimal env needed to run rake tasks:
-RUN export $(cat .env.build | xargs) && bundle exec rake assets:precompile
+# Precompile assets with Sprockets cache for incremental rebuilds.
+# The cache mount persists tmp/cache across builds so only changed
+# assets need recompilation (saves 1-2 min vs full recompile).
+ARG GIT_REV=unknown
+ENV GIT_REV=${GIT_REV}
+RUN --mount=type=cache,target=/app/tmp/cache,uid=1000 \
+    export $(cat .env.build | xargs) && bundle exec rake assets:precompile
 
-# Run the web server by default and expose its port
-EXPOSE 3000
+# ============================================================
+# Stage 2: Runtime – minimal image without build tooling
+# ============================================================
+FROM ruby:2.7.6-slim
+
+# Node.js binary only (ExecJS runtime needed by uglifier at boot)
+COPY --from=builder /usr/bin/node /usr/bin/node
+
+# Runtime-only libraries (no compilers, no -dev headers)
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update -qq \
+  && DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends \
+    ca-certificates \
+    ghostscript \
+    libgs9-common \
+    libicu67 \
+    libnss3 \
+    libpq5 \
+    libtre5 \
+    postgresql-client
+
+ENV LANG=C.UTF-8
+ENV TZ=Europe/Berlin
+
+RUN gem install bundler -v '~> 2.3.0'
+
+RUN adduser --shell /bin/bash --home /app --disabled-password nonroot
+USER nonroot
+
+WORKDIR /app
+
+ARG RAILS_ENV=production
+ENV RAILS_ENV=${RAILS_ENV}
+ARG GIT_REV=unknown
+ENV GIT_REV=${GIT_REV}
+
+# Copy app with compiled gems and precompiled assets from builder
+COPY --from=builder --chown=nonroot /app /app
+
+# Re-set bundle config (builder's /usr/local/bundle/config is not copied)
+RUN bundle config set deployment 'true' \
+    && bundle config set path vendor/bundle \
+    && bundle config set without "development test"
+
+ENV PORT=5000
+EXPOSE 5000
+CMD ["bundle", "exec", "puma"]

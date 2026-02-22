@@ -46,8 +46,13 @@ Rails.application.configure do
   # config.action_cable.url = 'wss://example.com/cable'
   # config.action_cable.allowed_request_origins = [ 'http://example.com', /http:\/\/example.*/ ]
 
-  # Force all access to the app over SSL, use Strict-Transport-Security, and use secure cookies.
-  config.force_ssl = true
+  # SSL is terminated by Cloudflare/Traefik — don't force SSL here (causes redirect loops).
+  config.force_ssl = false
+
+  # Skip Origin vs base_url check for CSRF. The proxy terminates SSL so the
+  # browser sends Origin: https:// but Rails sees base_url as http://.
+  # CSRF token protection remains active — this only disables the Origin header check.
+  config.action_controller.forgery_protection_origin_check = false
 
   # Use the lowest log level to ensure availability of diagnostic information
   # when problems arise.

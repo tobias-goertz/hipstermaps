@@ -40,7 +40,6 @@ gem "aws-sdk-s3"
 gem "aws-sdk-lambda"
 gem "dotenv-rails"
 gem "sidekiq"
-gem "pry-rails"
 gem "haml-rails"
 gem "simple_form"
 gem "lograge"
@@ -48,6 +47,7 @@ gem "lograge"
 group :development, :test do
   # Call 'byebug' anywhere in the code to stop execution and get a debugger console
   gem "byebug", platforms: [:mri, :mingw, :x64_mingw]
+  gem "pry-rails"
 end
 
 group :development do

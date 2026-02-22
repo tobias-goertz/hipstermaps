@@ -3,10 +3,17 @@
 .bundle
 .dockerignore
 .env
+.env.*
+!.env.build
 Dockerfile
+docker-compose.yml
+
+.github/
+spec/
+coverage/
+node_modules/
 
 tmp/*
 !/tmp/.keep
 !/tmp/pids/.keep
 log/*
-coverage/*

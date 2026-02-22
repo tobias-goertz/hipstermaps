@@ -3,24 +3,24 @@ services:
     build:
       dockerfile: Dockerfile
       context: .
+    image: hipstermaps:latest
     env_file:
     - .env
     command: bundle exec puma
     ports:
-      - 3000:3000
+      - 5000:5000
     restart: always
     depends_on:
       - redis
       - postgres
   worker:
-    build:
-      dockerfile: Dockerfile
-      context: .
+    image: hipstermaps:latest
     env_file:
     - .env
     command: bundle exec sidekiq
     restart: always
     depends_on:
+      - web
       - redis
       - postgres
   redis:
@@ -40,7 +40,7 @@ services:
     ports:
       - '5432:5432'
     volumes:
-      - docker-hipster-postgres:/var/lib/postgresql/data
+      - docker-hipster-postgres:/var/lib/postgresql
 volumes:
   redis:
     driver: local
