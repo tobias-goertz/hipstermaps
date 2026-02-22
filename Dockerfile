@@ -19,12 +19,6 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     libtre-dev \
     zlib1g-dev
 
-# Install Node.js 16 (needed only as ExecJS runtime for asset compilation)
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    curl -fsSL https://deb.nodesource.com/setup_16.x | bash - \
-  && apt-get install -y --no-install-recommends nodejs
-
 ENV LANG=C.UTF-8
 ENV TZ=Europe/Berlin
 
@@ -71,17 +65,12 @@ RUN --mount=type=cache,target=/app/tmp/cache,uid=1000 \
 # ============================================================
 FROM ruby:2.7.6-slim
 
-# Node.js binary only (ExecJS runtime needed by uglifier at boot)
-COPY --from=builder /usr/bin/node /usr/bin/node
-
 # Runtime-only libraries (no compilers, no -dev headers)
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update -qq \
   && DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends \
     ca-certificates \
-    ghostscript \
-    libgs9-common \
     libicu67 \
     libnss3 \
     libpq5 \

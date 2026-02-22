@@ -9,19 +9,8 @@ gem "rails", "~> 5.2.6"
 gem "pg"
 # Use Puma as the app server
 gem "puma"
-# Use SCSS for stylesheets
-gem "sass-rails"
-# Use Uglifier as compressor for JavaScript assets
-gem "uglifier"
-# See https://github.com/rails/execjs#readme for more supported runtimes
-# gem 'mini_racer', platforms: :ruby
-
-# Use CoffeeScript for .coffee assets and views
-gem "coffee-rails"
 # Turbolinks makes navigating your web application faster. Read more: https://github.com/turbolinks/turbolinks
 gem "turbolinks"
-# Build JSON APIs with ease. Read more: https://github.com/rails/jbuilder
-gem "jbuilder"
 # Use Redis adapter to run Action Cable in production
 # gem 'redis', '~> 4.0'
 # Use ActiveModel has_secure_password
@@ -70,5 +59,3 @@ group :test do
   gem "rspec-rails"
 end
 
-# Windows does not include zoneinfo files, so bundle the tzinfo-data gem
-gem "tzinfo-data", platforms: [:mingw, :mswin, :x64_mingw, :jruby]

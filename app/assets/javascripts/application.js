@@ -16,6 +16,5 @@
 //= require mapbox-gl-geocoder.min
 //= require maps
 //= require rails-ujs
-//= require activestorage
 //= require turbolinks
 //= require_tree .
