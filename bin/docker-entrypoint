@@ -1,0 +1,15 @@
+#!/bin/bash -e
+
+# Prepare database when starting the web server
+if [ "${@: -2:1}" == "./bin/rails" ] && [ "${@: -1:1}" == "server" ]; then
+  ./bin/rails db:prepare
+
+  # Load Solid Queue/Cable/Cache schemas into the shared database.
+  # db:prepare skips schema load when the database already exists,
+  # but these tables live in schema files, not migrations.
+  ./bin/rails db:schema:load:queue 2>/dev/null || true
+  ./bin/rails db:schema:load:cable 2>/dev/null || true
+  ./bin/rails db:schema:load:cache 2>/dev/null || true
+fi
+
+exec "${@}"

@@ -1,19 +1,35 @@
-# Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+muenster:
+  format: "2:3"
+  style: "shigawire/cjkqod0by7xsc2rpju6kvos0x"
+  lon: 7.617
+  lat: 51.960
+  zoom: 14.0
+  filename: "test_muenster.png"
+  title: "MÜNSTER"
+  subtitle: "GERMANY"
+  coords: "51° 57' 36\" N - 7° 37' 1\" E"
+  status: 0
 
-one:
-  format: MyString
-  lon: MyString
-  lat: MyString
-  mapbox_map_id: MyString
-  filename: MyString
-  title: MyString
-  subtitle: MyString
+completed:
+  format: "3:4"
+  style: "mapbox/dark-v10"
+  lon: 13.405
+  lat: 52.520
+  zoom: 12.0
+  filename: "test_berlin.png"
+  title: "BERLIN"
+  subtitle: "GERMANY"
+  coords: "52° 31' 12\" N - 13° 24' 18\" E"
+  status: 1
 
-two:
-  format: MyString
-  lon: MyString
-  lat: MyString
-  mapbox_map_id: MyString
-  filename: MyString
-  title: MyString
-  subtitle: MyString
+failed:
+  format: "2:3"
+  style: "mapbox/satellite-v9"
+  lon: -73.935
+  lat: 40.730
+  zoom: 13.0
+  filename: "test_nyc.png"
+  title: "NEW YORK"
+  subtitle: "USA"
+  coords: "40° 43' 48\" N - 73° 56' 6\" W"
+  status: 2

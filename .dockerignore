@@ -1,19 +1,53 @@
-.DS_Store
-.git
-.bundle
-.dockerignore
-.env
-.env.*
-!.env.build
-Dockerfile
-docker-compose.yml
+# See https://docs.docker.com/engine/reference/builder/#dockerignore-file for more about ignoring files.
 
-.github/
-spec/
-coverage/
-node_modules/
+# Ignore git directory.
+/.git/
+/.gitignore
 
-tmp/*
+# Ignore bundler config.
+/.bundle
+
+# Ignore all environment files.
+/.env*
+
+# Ignore all default key files.
+/config/master.key
+/config/credentials/*.key
+
+# Ignore all logfiles and tempfiles.
+/log/*
+/tmp/*
+!/log/.keep
 !/tmp/.keep
+
+# Ignore pidfiles, but keep the directory.
+/tmp/pids/*
 !/tmp/pids/.keep
-log/*
+
+# Ignore storage (uploaded files in development and any SQLite databases).
+/storage/*
+!/storage/.keep
+/tmp/storage/*
+!/tmp/storage/.keep
+
+# Ignore assets.
+/node_modules/
+/app/assets/builds/*
+!/app/assets/builds/.keep
+/public/assets
+
+# Ignore CI service files.
+/.github
+
+# Ignore Kamal files.
+/config/deploy*.yml
+/.kamal
+
+# Ignore development files
+/.devcontainer
+/.claude
+/docker-compose.yml
+
+# Ignore Docker-related files
+/.dockerignore
+/Dockerfile*

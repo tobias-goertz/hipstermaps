@@ -1,10 +1,11 @@
 Rails.application.routes.draw do
-  # For details on the DSL available within this file, see http://guides.rubyonrails.org/routing.html
   root "maps#new"
 
-  resources :maps, only: [:create, :show, :new] do
-    get :status
+  resources :maps, only: [ :new, :create, :show ] do
+    member do
+      get :image
+    end
   end
 
-  get ".well-known/health-check", to: "health#health_check"
+  get "up" => "rails/health#show", as: :rails_health_check
 end

@@ -1,28 +1,24 @@
 class Map < ApplicationRecord
-  enum status: [:in_progress, :available, :failed]
+  enum :status, { in_progress: 0, available: 1, failed: 2 }
+
+  broadcasts_to ->(map) { map }, inserts_by: :replace
 
   validates :format, presence: true
-  validates :lon, presence: true
-  validates :lat, presence: true
-  validates :zoom, presence: true
+  validates :lon, presence: true, numericality: true
+  validates :lat, presence: true, numericality: true
+  validates :zoom, presence: true, numericality: { greater_than: 1 }
   validates :style, presence: true
+  validates :title, presence: true
 
-  before_commit :set_filename, only: :create
-  after_commit :start_worker, only: :create
+  after_commit :start_worker, on: :create
 
-  def set_filename
-    update(filename: "#{SecureRandom.urlsafe_base64}.png") unless filename
+  def image_url
+    Rails.application.routes.url_helpers.image_map_path(self)
   end
 
-  def cdn_url
-    "https://#{ENV["MAPS_CDN_HOST"]}/#{filename}"
-  end
-
-  def preview_url
-    "https://#{ENV["MAPS_CDN_HOST"]}/preview_#{filename}"
-  end
+  private
 
   def start_worker
-    MapWorker.perform_async(id) if in_progress?
+    MapGenerationJob.perform_later(id) if in_progress?
   end
 end
